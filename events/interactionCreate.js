@@ -15,6 +15,12 @@ module.exports = {
     }
 
     try {
+      if (interaction.commandName == "listen") {
+        interaction = {
+          client: interaction.client,
+          interaction,
+        };
+      }
       await command.execute(interaction);
     } catch (error) {
       console.error(`Error executing ${interaction.commandName}`);

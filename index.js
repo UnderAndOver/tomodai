@@ -6,7 +6,15 @@ const dotenv = require("dotenv");
 dotenv.config();
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
+});
 
 client.cooldowns = new Collection();
 client.commands = new Collection();
