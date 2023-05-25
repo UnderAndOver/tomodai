@@ -1,39 +1,38 @@
 const { REST, Routes } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
+
 const dotenv = require("dotenv");
 dotenv.config();
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const DEV_GUILD_ID = process.env.DEV_GUILD_ID;
-const fs = require("node:fs");
-const path = require("node:path");
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.DEV_GUILD_ID;
 
-const commands = [];
-// Grab all the command folders from the commands directory you created earlier
-const foldersPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(foldersPath);
-
-for (const folder of commandFolders) {
-  // Grab all the command files from the commands directory you created earlier
-  const commandsPath = path.join(foldersPath, folder);
-  const commandFiles = fs
-    .readdirSync(commandsPath)
-    .filter((file) => file.endsWith(".js"));
-  // Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    if ("data" in command && "execute" in command) {
-      commands.push(command.data.toJSON());
+const filesArr = [];
+const getFilesRecursively = (directory, files) => {
+  const filesInDirectory = fs.readdirSync(directory);
+  for (const file of filesInDirectory) {
+    const absolute = path.join(directory, file);
+    if (fs.statSync(absolute).isDirectory()) {
+      getFilesRecursively(absolute, files);
     } else {
-      console.log(
-        `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
-      );
+      files.push(absolute);
     }
   }
+};
+
+const commands = [];
+getFilesRecursively("./commands", filesArr);
+const commandFiles = filesArr.filter((file) => file.endsWith(".js"));
+
+// Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
+for (const file of commandFiles) {
+  const command = require(`./${file}`);
+  commands.push(command.data.toJSON());
 }
 
 // Construct and prepare an instance of the REST module
-const rest = new REST().setToken(DISCORD_TOKEN);
+const rest = new REST({ version: "10" }).setToken(token);
 
 // and deploy your commands!
 (async () => {
@@ -44,9 +43,30 @@ const rest = new REST().setToken(DISCORD_TOKEN);
 
     // The put method is used to fully refresh all commands in the guild with the current set
     const data = await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, DEV_GUILD_ID),
+      Routes.applicationGuildCommands(clientId, guildId),
       { body: commands }
     );
+
+    console.log(
+      `Successfully reloaded ${data.length} application (/) commands.`
+    );
+  } catch (error) {
+    // And of course, make sure you catch and log any errors!
+    console.error(error);
+  }
+})();
+
+// and deploy your commands! to all guilds
+(async () => {
+  try {
+    console.log(
+      `Started refreshing ${commands.length} application (/) commands.`
+    );
+
+    // The put method is used to fully refresh all commands in the guild with the current set
+    const data = await rest.put(Routes.applicationCommands(clientId), {
+      body: [],
+    });
 
     console.log(
       `Successfully reloaded ${data.length} application (/) commands.`
